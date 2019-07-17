@@ -4,7 +4,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,7 +28,7 @@ namespace WebsiteChecker
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
 
-        public ObservableCollection<WebsiteWrapper> WebsiteUrls { get; set; } = new ObservableCollection<WebsiteWrapper>();
+        public ObservableCollection<ICollectionItem> WebsiteUrls { get; set; } = new ObservableCollection<ICollectionItem>();
 
         public Dictionary<Guid, string> websitesDictionary = new Dictionary<Guid, string>();
 
@@ -34,9 +36,10 @@ namespace WebsiteChecker
 
         private string messageString;
 
+        private WebsiteCheckerFactory factory = new WebsiteCheckerFactory();
+
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private HttpClient httpClient = new HttpClient();
 
         public string MessageString
         {
@@ -73,19 +76,10 @@ namespace WebsiteChecker
 
         private void CheckWebsites()
         {
-            SetMessageString("WebsiteCheck");
-        }
-
-        private void AddWebsiteButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is ContentControl control)
+            foreach(var ci in WebsiteUrls)
             {
-                var url = control?.Tag as string;
-                if (!url.StartsWith("http")) url = $"http://{url}";
-                WebsiteUrls.Add(new WebsiteWrapper(url));
-                SetMessageString($"Added website {url}");
+                ci.Process();
             }
-            else SetMessageString("cast error");
         }
 
         protected void NotifyPropertyChanged([CallerMemberName]string name = "")
@@ -102,27 +96,35 @@ namespace WebsiteChecker
                 Thread.Sleep(miliseconds);
                 if (MessageGuid == guid) MessageString = string.Empty;
             });
+            Browser.Navigated += new NavigatedEventHandler(Browser_Navigated);
         }
 
-        private void WebsitesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private static void SetSilent(WebBrowser browser, bool silent)
         {
-            if(sender is ListView lv)
+            if (browser == null)
+                throw new ArgumentNullException("browser");
+
+            // get an IWebBrowser2 from the document
+            IOleServiceProvider sp = browser.Document as IOleServiceProvider;
+            if (sp != null)
             {
-                if(lv.SelectedItem is WebsiteWrapper ww)
+                Guid IID_IWebBrowserApp = new Guid("0002DF05-0000-0000-C000-000000000046");
+                Guid IID_IWebBrowser2 = new Guid("D30C1661-CDAF-11d0-8A3E-00C04FC9E26E");
+
+                object webBrowser;
+                sp.QueryService(ref IID_IWebBrowserApp, ref IID_IWebBrowser2, out webBrowser);
+                if (webBrowser != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(ww.WebsiteUrlString))
-                    {
-                        try
-                        {
-                            Browser.Navigate(ww.WebsiteUrlString);
-                        }
-                        catch(Exception ex)
-                        {
-                            SetMessageString(ex.Message);
-                        }
-                    }
+                    webBrowser.GetType().InvokeMember("Silent", BindingFlags.Instance | BindingFlags.Public | BindingFlags.PutDispProperty, null, webBrowser, new object[] { silent });
                 }
             }
+        }
+
+        [ComImport, Guid("6D5140C1-7436-11CE-8034-00AA006009FA"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IOleServiceProvider
+        {
+            [PreserveSig]
+            int QueryService([In] ref Guid guidService, [In] ref Guid riid, [MarshalAs(UnmanagedType.IDispatch)] out object ppvObject);
         }
     }
 }
