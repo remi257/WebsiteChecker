@@ -40,6 +40,18 @@ namespace WebsiteChecker
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        private string log;
+        public string Log
+        {
+            get => log;
+            set
+            {
+                if (log == value) return;
+                log = value;
+                NotifyPropertyChanged();
+            }
+        }
+
 
         public string MessageString
         {
@@ -69,7 +81,7 @@ namespace WebsiteChecker
                     CheckWebsites();
                 }
             }, ct);
-
+            Browser.Navigated += new NavigatedEventHandler(Browser_Navigated);
             Browser.Navigate("https://google.com");
            
         }
@@ -78,7 +90,7 @@ namespace WebsiteChecker
         {
             foreach(var ci in WebsiteUrls)
             {
-                ci.Process();
+                ci.Process().ForEach(s => SetMessageString(s, true));
             }
         }
 
@@ -87,8 +99,10 @@ namespace WebsiteChecker
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
 
-        protected void SetMessageString(string message, int miliseconds = 3000)
+        protected void SetMessageString(string message, bool logOnly = false, int miliseconds = 3000)
         {
+            Log += $"\n{DateTime.Now.ToShortTimeString()} - {message}";
+            if (logOnly) return;
             var guid = Guid.NewGuid();
             MessageGuid = guid;
             MessageString = message;
@@ -96,7 +110,6 @@ namespace WebsiteChecker
                 Thread.Sleep(miliseconds);
                 if (MessageGuid == guid) MessageString = string.Empty;
             });
-            Browser.Navigated += new NavigatedEventHandler(Browser_Navigated);
         }
 
         private static void SetSilent(WebBrowser browser, bool silent)

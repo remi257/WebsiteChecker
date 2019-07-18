@@ -5,11 +5,15 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WebsiteChecker"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800" Background="Gray">
+        Title="MainWindow" Height="600" Width="1100" Background="Gray">
+    <Window.Resources>
+        <local:BoolToVisibilityConverter x:Key="boolToVisibilityConverter"/>
+    </Window.Resources>
     <Grid Margin="10">
         <Grid.ColumnDefinitions>
             <ColumnDefinition MaxWidth="350px"/>
             <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="1*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition/>
@@ -19,7 +23,14 @@
             <TextBox DockPanel.Dock="Bottom" Height="30" Padding="5" Margin="2" Name="WebsiteTextBox"/>
             <Button DockPanel.Dock="Bottom" Height="25" Padding="5" Margin="2" Tag="{Binding Text, ElementName=WebsiteTextBox}" Content="Add Website" Click="AddWebsiteButton_Click"/>
             <ListView DockPanel.Dock="Top" Name="WebsitesListView" ItemsSource="{Binding WebsiteUrls}" SelectionChanged="WebsitesListView_SelectionChanged" SelectionMode="Single">
-
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="3">
+                            <TextBlock Text="{Binding}"></TextBlock>
+                            <Ellipse Width="5" Height="5" Fill="Red" Visibility="{Binding ChangedSinceLastCheck, Converter={StaticResource boolToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
             </ListView>
         </DockPanel>
         <WebBrowser Grid.Column="1" Name="Browser" Margin="2">
@@ -30,5 +41,8 @@
                 
             </TextBlock>
         </Border>
+        <TextBlock Grid.Column="2" Grid.RowSpan="2" Margin="5" Background="White" Name="Logger" Text="{Binding Log}" TextWrapping="Wrap">
+            
+        </TextBlock>
     </Grid>
 </Window>
